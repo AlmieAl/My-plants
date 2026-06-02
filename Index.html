@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Мои растения — памятка</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: #0f1a0f;
+    --surface: #162016;
+    --card: #1c2a1c;
+    --card-hover: #223022;
+    --accent: #7ec87e;
+    --accent2: #c8e6c8;
+    --gold: #d4a843;
+    --text: #e8f0e8;
+    --muted: #7a9a7a;
+    --border: #2a402a;
+    --water: #5ba3c9;
+    --soil: #a0724a;
+    --fert: #d4a843;
+    --pot: #8a7a6a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh;
+    padding: 0 0 calc(40px + env(safe-area-inset-bottom));
+  }
+
+  header {
+    background: linear-gradient(135deg, #0a140a 0%, #1a2e1a 60%, #0d1f0d 100%);
+    padding: 36px 20px 28px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  header::before {
+    content: '🌿';
+    font-size: 120px;
+    position: absolute;
+    opacity: 0.06;
+    top: -20px;
+    right: -10px;
+    transform: rotate(20deg);
+  }
+
+  header h1 {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 26px;
+    color: var(--accent2);
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+
+  header p {
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 300;
+  }
+
+  .filter-bar {
+    display: flex;
+    gap: 8px;
+    padding: 16px 16px 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .filter-bar::-webkit-scrollbar { display: none; }
+
+  .filter-btn {
+    flex-shrink: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .filter-btn.active, .filter-btn:hover {
+    background: var(--accent);
+    color: #0f1a0f;
+    border-color: var(--accent);
+    font-weight: 500;
+  }
+
+  .grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: all 0.25s;
+    cursor: pointer;
+  }
+
+  .card.expanded { border-color: var(--accent); }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    gap: 14px;
+  }
+
+  .plant-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+    background: rgba(126,200,126,0.1);
+  }
+
+  .card-title {
+    flex: 1;
+  }
+
+  .card-title h2 {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 16px;
+    color: var(--accent2);
+    line-height: 1.2;
+    margin-bottom: 3px;
+  }
+
+  .card-title .latin {
+    font-size: 11px;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  .chevron {
+    color: var(--muted);
+    font-size: 18px;
+    transition: transform 0.3s;
+    flex-shrink: 0;
+  }
+  .card.expanded .chevron { transform: rotate(180deg); color: var(--accent); }
+
+  .card-body {
+    display: none;
+    padding: 0 16px 16px;
+    animation: fadeIn 0.2s ease;
+  }
+  .card.expanded .card-body { display: block; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .tags-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  .tag {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .tag.water { background: rgba(91,163,201,0.15); color: var(--water); border: 1px solid rgba(91,163,201,0.3); }
+  .tag.soil  { background: rgba(160,114,74,0.15); color: var(--soil); border: 1px solid rgba(160,114,74,0.3); }
+  .tag.fert  { background: rgba(212,168,67,0.15); color: var(--fert); border: 1px solid rgba(212,168,67,0.3); }
+  .tag.pot   { background: rgba(138,122,106,0.15); color: var(--pot); border: 1px solid rgba(138,122,106,0.3); }
+  .tag.light { background: rgba(126,200,126,0.12); color: var(--accent); border: 1px solid rgba(126,200,126,0.25); }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .info-cell {
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+
+  .info-cell .label {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 4px;
+  }
+
+  .info-cell .value {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  .note {
+    background: rgba(212,168,67,0.08);
+    border-left: 3px solid var(--gold);
+    border-radius: 0 8px 8px 0;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: #c8b87a;
+    line-height: 1.5;
+  }
+
+  .thrips-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(200, 80, 80, 0.15);
+    border: 1px solid rgba(200,80,80,0.3);
+    color: #e87070;
+    font-size: 10px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    margin-top: 8px;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 12px 0;
+  }
+
+  .section-title {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    padding: 0 16px;
+    margin: 8px 0 4px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Мои растения</h1>
+  <p>Памятка по уходу · 13 растений</p>
+</header>
+
+<div class="filter-bar">
+  <button class="filter-btn active" onclick="filterCards('all', this)">Все</button>
+  <button class="filter-btn" onclick="filterCards('thrips', this)">⚠️ Трипсы</button>
+  <button class="filter-btn" onclick="filterCards('shade', this)">🌑 Тень</button>
+  <button class="filter-btn" onclick="filterCards('light', this)">☀️ Свет</button>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<script>
+const plants = [
+  {
+    id: 'monstera',
+    icon: '🌿',
+    name: 'Монстера',
+    latin: 'Monstera deliciosa',
+    count: 2,
+    thrips: true,
+    light: 'sun',
+    tags: {
+      water: 'верх 3–4 см просох',
+      soil: 'дренированный универсальный + перлит',
+      pot: 'пластик или керамика с дренажем',
+      fert: 'раз в 2 нед. (весна–лето)',
+      light: 'яркий рассеянный'
+    },
+    note: 'Летом опрыскивать листья. Не переувлажнять — корни гниют быстро. Опора обязательна для взрослых.',
+    thripsNote: '⚠️ Высокий риск трипсов — обрабатывать CAREO Gießmittel'
+  },
+  {
+    id: 'strelitzia-n',
+    icon: '🌴',
+    name: 'Стрелиция Николая',
+    latin: 'Strelitzia nicolai',
+    thrips: false,
+    light: 'sun',
+    tags: {
+      water: 'верх 4–5 см просох',
+      soil: 'тяжёлый питательный + песок',
+      pot: 'тяжёлый керамический (не опрокинется)',
+      fert: 'раз в 2 нед. (весна–лето)',
+      light: 'прямое солнце или яркий рассеянный'
+    },
+    note: 'Любит просторный горшок. Листья рвутся — это нормально. Зимой поливать реже.'
+  },
+  {
+    id: 'strelitzia-r',
+    icon: '🌸',
+    name: 'Стрелиция Регина',
+    latin: 'Strelitzia reginae',
+    thrips: false,
+    light: 'sun',
+    tags: {
+      water: 'верх 5–6 см просох',
+      soil: 'питательный дренированный + песок',
+      pot: 'тесноватый горшок — стимулирует цветение',
+      fert: 'раз в 2 нед. (весна–лето)',
+      light: 'максимум прямого солнца'
+    },
+    note: 'Цветёт только при хорошем освещении и тесном горшке. Зимой — прохладнее и суше.'
+  },
+  {
+    id: 'ficus-l',
+    icon: '🎋',
+    name: 'Фикус Лирата Бейби',
+    latin: 'Ficus lyrata',
+    thrips: false,
+    light: 'sun',
+    tags: {
+      water: 'верх 3–4 см просох',
+      soil: 'дренированный универсальный',
+      pot: 'горшок на 2–3 см больше корневого кома',
+      fert: 'раз в 2 нед. (весна–лето)',
+      light: 'яркий рассеянный, не прямое солнце'
+    },
+    note: 'Не переставлять без нужды — сбрасывает листья от стресса. Пыль протирать влажной тряпкой.'
+  },
+  {
+    id: 'ficus-t',
+    icon: '🌳',
+    name: 'Фикус Тенеке',
+    latin: 'Ficus benjamina',
+    thrips: false,
+    light: 'sun',
+    tags: {
+      water: 'верх 3–4 см просох',
+      soil: 'дренированный универсальный',
+      pot: 'стандартный с дренажём',
+      fert: 'раз в 2 нед. (весна–лето)',
+      light: 'яркий рассеянный'
+    },
+    note: 'Очень чувствителен к сквознякам и перемещению. Листопад — сигнал стресса.'
+  },
+  {
+    id: 'epipremnum-pole',
+    icon: '🪴',
+    name: 'Эпипремнум на опоре',
+    latin: 'Epipremnum aureum',
+    thrips: false,
+    light: 'shade',
+    tags: {
+      water: 'верх 3–4 см просох',
+      soil: 'лёгкий универсальный + перлит',
+      pot: 'любой с дренажём',
+      fert: 'раз в 3–4 нед.',
+      light: 'от полутени до рассеянного'
+    },
+    note: 'На опоре листья крупнее. Чем больше света — тем ярче рисунок на листьях.'
+  },
+  {
+    id: 'epipremnum-amp',
+    icon: '🌱',
+    name: 'Эпипремнум ампельный',
+    latin: 'Epipremnum aureum',
+    thrips: false,
+    light: 'shade',
+    tags: {
+      water: 'верх 3–4 см просох',
+      soil: 'лёгкий универсальный + перлит',
+      pot: 'кашпо для ампелей',
+      fert: 'раз в 3–4 нед.',
+      light: 'полутень — тень'
+    },
+    note: 'Один из самых неприхотливых. Хорошо очищает воздух. Ядовит для животных!'
+  },
+  {
+    id: 'coffee',
+    icon: '☕',
+    name: 'Кофе Арабика',
+    latin: 'Coffea arabica',
+    thrips: false,
+    light: 'sun',
+    tags: {
+      water: 'верх 2 см просох, не пересушивать',
+      soil: 'слабокислый: торф + перлит',
+      pot: 'керамика или пластик с дренажём',
+      fert: 'раз в 2 нед. (весна–лето)',
+      light: 'яркий рассеянный, не прямое полуденное'
+    },
+    note: 'Поливать мягкой или отстоянной водой. Любит влажный воздух — опрыскивать. Пересаживать осторожно.'
+  },
+  {
+    id: 'pilea',
+    icon: '🪙',
+    name: 'Пилея',
+    latin: 'Pilea peperomioides',
+    thrips: false,
+    light: 'sun',
+    tags: {
+      water: 'верх 2–3 см просох',
+      soil: 'лёгкий дренированный',
+      pot: 'небольшой — не любит лишний объём',
+      fert: 'раз в 3–4 нед.',
+      light: 'яркий рассеянный'
+    },
+    note: 'Поворачивать к свету каждые 2 недели — иначе вырастет кривой. Легко даёт детки.'
+  },
+  {
+    id: 'birkin',
+    icon: '🌿',
+    name: 'Филодендрон Биркин',
+    latin: 'Philodendron birkin',
+    thrips: true,
+    light: 'sun',
+    tags: {
+      water: 'верх 3–4 см просох',
+      soil: 'лёгкий: универсальный + перлит + кора',
+      pot: 'пластик с дренажём',
+      fert: 'раз в 2 нед. (весна–лето)',
+      light: 'яркий рассеянный'
+    },
+    note: 'Рисунок на листьях зависит от освещения — чем светлее, тем чётче полосы.',
+    thripsNote: '⚠️ Высокий риск трипсов — обрабатывать CAREO Gießmittel'
+  },
+  {
+    id: 'areca',
+    icon: '🌴',
+    name: 'Арека',
+    latin: 'Dypsis lutescens',
+    thrips: false,
+    light: 'sun',
+    tags: {
+      water: 'верх 2–3 см просох, любит равномерную влажность',
+      soil: 'дренированный универсальный + песок',
+      pot: 'высокий с хорошим дренажём',
+      fert: 'раз в 2 нед. (весна–лето)',
+      light: 'яркий рассеянный'
+    },
+    note: 'Пожелтение кончиков — сухой воздух или жёсткая вода. Опрыскивать регулярно.'
+  },
+  {
+    id: 'aspidistra',
+    icon: '🍃',
+    name: 'Аспидистра',
+    latin: 'Aspidistra elatior',
+    thrips: false,
+    light: 'shade',
+    tags: {
+      water: 'грунт просох на ½ глубины',
+      soil: 'любой универсальный',
+      pot: 'любой с дренажём',
+      fert: 'раз в месяц (весна–лето)',
+      light: 'глубокая тень — полутень'
+    },
+    note: 'Самое неприхотливое в коллекции. Переносит почти полную тень. Рост медленный — пересадка редко.'
+  },
+  {
+    id: 'peperomia',
+    icon: '💚',
+    name: 'Пеперомия',
+    latin: 'Peperomia sp.',
+    thrips: false,
+    light: 'shade',
+    tags: {
+      water: 'грунт просох полностью',
+      soil: 'лёгкий: торф + перлит (1:1)',
+      pot: 'маленький — суккулентоподобные корни',
+      fert: 'раз в месяц (весна–лето)',
+      light: 'рассеянный, полутень'
+    },
+    note: 'Хранит воду в листьях — лучше недолить, чем перелить. Не опрыскивать — появляются пятна.'
+  }
+];
+
+function filterCards(type, btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  document.querySelectorAll('.card').forEach(card => {
+    if (type === 'all') { card.style.display = ''; return; }
+    if (type === 'thrips') { card.style.display = card.dataset.thrips === 'true' ? '' : 'none'; return; }
+    if (type === 'shade') { card.style.display = card.dataset.light === 'shade' ? '' : 'none'; return; }
+    if (type === 'light') { card.style.display = card.dataset.light === 'sun' ? '' : 'none'; return; }
+  });
+}
+
+function toggleCard(id) {
+  const card = document.getElementById(id);
+  card.classList.toggle('expanded');
+}
+
+if (window.Telegram && window.Telegram.WebApp) {
+  window.Telegram.WebApp.ready();
+  window.Telegram.WebApp.expand();
+}
+
+const grid = document.getElementById('grid');
+
+plants.forEach(p => {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.id = p.id;
+  card.dataset.thrips = p.thrips ? 'true' : 'false';
+  card.dataset.light = p.light;
+  card.onclick = () => toggleCard(p.id);
+
+  const countBadge = p.count ? ` <span style="font-size:11px;color:var(--muted);">×${p.count}</span>` : '';
+  const thripsTag = p.thrips ? `<div class="thrips-badge">⚠️ риск трипсов</div>` : '';
+  const thripsNoteHtml = p.thripsNote ? `<div class="divider"></div><div class="note">${p.thripsNote}</div>` : '';
+
+  card.innerHTML = `
+    <div class="card-header">
+      <div class="plant-icon">${p.icon}</div>
+      <div class="card-title">
+        <h2>${p.name}${countBadge}</h2>
+        <div class="latin">${p.latin}</div>
+      </div>
+      <div class="chevron">⌄</div>
+    </div>
+    <div class="card-body">
+      <div class="tags-row">
+        <span class="tag water">💧 ${p.tags.water}</span>
+        <span class="tag light">☀️ ${p.tags.light}</span>
+        <span class="tag fert">🌱 ${p.tags.fert}</span>
+      </div>
+      <div class="info-grid">
+        <div class="info-cell">
+          <div class="label">🪨 Грунт</div>
+          <div class="value">${p.tags.soil}</div>
+        </div>
+        <div class="info-cell">
+          <div class="label">🪴 Горшок</div>
+          <div class="value">${p.tags.pot}</div>
+        </div>
+      </div>
+      <div class="note">💡 ${p.note}</div>
+      ${thripsTag}
+      ${thripsNoteHtml}
+    </div>
+  `;
+
+  grid.appendChild(card);
+});
+</script>
+</body>
+</html>
